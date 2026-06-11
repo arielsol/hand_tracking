@@ -1,6 +1,7 @@
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+from mediapipe.tasks.python.vision import GestureRecognizer, GestureRecognizerOptions
 import numpy as np
 from pygrabber.dshow_graph import FilterGraph
 
@@ -81,15 +82,16 @@ class HandThread(threading.Thread):
     def __init__(self):
         super().__init__()
 
+        # ---------- Debug Draw Setup ----------
+        self.latest_landmarks = None
+        self.latest_gestures = None
+        self.timeSincePostStatistics = 0
+
         # ---------- Camera Setup ----------
         chosen_index = CaptureThread.pick_camera()
         if chosen_index is None:
             return
-        global_vars.WEBCAM_INDEX = chosen_index
-
-        # ---------- Debug Draw Setup ----------
-        self.latest_landmarks = None
-        self.timeSincePostStatistics = 0
+        global_vars.WEBCAM_INDEX = chosen_index        
 
     def run(self):
         # ---------- Input Setup ----------
@@ -105,8 +107,8 @@ class HandThread(threading.Thread):
         self.csv_handler = CSVHandler(self.input_handler)
 
         # ---------- MediaPipe Hand Setup ----------
-        base_options = python.BaseOptions(model_asset_path="hand_landmarker.task")
-        options = vision.HandLandmarkerOptions(
+        base_options = python.BaseOptions(model_asset_path="gesture_recognizer.task")
+        options = GestureRecognizerOptions(
             base_options = base_options,
             running_mode = vision.RunningMode.LIVE_STREAM, 
             num_hands = global_vars.NUMBER_HANDS,
@@ -114,7 +116,7 @@ class HandThread(threading.Thread):
             min_hand_presence_confidence = 0.25,
             result_callback = self.handle_live_stream_result
         )
-        hand_tracker = vision.HandLandmarker.create_from_options(options)    
+        gesture_recognizer = GestureRecognizer.create_from_options(options) 
 
         # ---------- Handle Capture ----------
         capture = CaptureThread()
@@ -142,31 +144,45 @@ class HandThread(threading.Thread):
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_contiguous)
             
             timestamp_ms = int(time.time() * 1000)
-            hand_tracker.detect_async(mp_image, timestamp_ms)
+            gesture_recognizer.recognize_async(mp_image, timestamp_ms)
 
             # --- Mirror Image for Debug ---
-            if global_vars.DEBUG:
-                debug_image = cv2.flip(image_raw, 1) 
+            debug_image = cv2.flip(image_raw, 1) 
 
-                if self.latest_landmarks is not None:
-                    for landmarks in self.latest_landmarks:
-                        for lm in landmarks:
-                            mirrored_x = 1.0 - lm.x 
-                            
-                            cx = int(mirrored_x * debug_image.shape[1]) 
-                            cy = int(lm.y * debug_image.shape[0])
-                            cv2.circle(debug_image, (cx, cy), 4, (0, 255, 255), -1)
+            if self.latest_landmarks is not None:
+                for landmarks in self.latest_landmarks:
+                    for lm in landmarks:
+                        mirrored_x = 1.0 - lm.x 
+                        
+                        cx = int(mirrored_x * debug_image.shape[1]) 
+                        cy = int(lm.y * debug_image.shape[0])
+                        cv2.circle(debug_image, (cx, cy), 4, (0, 255, 255), -1)
 
-                cv2.imshow('Hand Tracking Debug', debug_image)
+            # --- Display Gestures ---
+            if self.latest_gestures:
+                for idx, gesture in enumerate(self.latest_gestures):
+                    if gesture:
+                        gesture_name = gesture[0].category_name
+                        confidence = gesture[0].score
+                        text = f"Hand {idx}: {gesture_name} ({confidence:.2f})"
+                        cv2.putText(debug_image, text, (10, 40 + (idx * 30)), 
+                                    cv2.FONT_HERSHEY_TRIPLEX, 0.8, (0, 255, 255), 1)
+
+            cv2.imshow('Hand Tracking Debug', debug_image)
 
         capture.cap.release()
         cv2.destroyAllWindows()
 
-    def handle_live_stream_result(self, results: vision.HandLandmarkerResults, output_image: mp.Image, timestamp_ms: int):
-        if results.hand_landmarks:
+    def handle_live_stream_result(self, results: vision.GestureRecognizeResult, output_image: mp.Image, timestamp_ms: int):
+        if results.hand_landmarks and len(results.hand_landmarks) > 0:
             self.latest_landmarks = results.hand_landmarks
-        else:
-            self.latest_landmarks = None
+        
+        if results.gestures and len(results.gestures) > 0:
+            self.latest_gestures = results.gestures
+        else:  
+            if not results.hand_landmarks: 
+                self.latest_gestures = None
+                self.latest_landmarks = None
 
         if hasattr(self, 'osc_handler'):
             self.osc_handler.process_hand_data(results)

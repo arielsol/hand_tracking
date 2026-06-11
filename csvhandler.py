@@ -32,7 +32,7 @@ class CSVHandler:
         self.csv_file = open(self.current_filepath, mode='a', newline='', encoding='utf-8')
         self.writer = csv.writer(self.csv_file)
 
-        headers = ["Timestamp_MS", "Hand_Index", "Hand_Label", "Coordinate_Type"]
+        headers = ["Timestamp_MS", "Hand_Index", "Hand_Label", "Gesture_Name", "Gesture_Confidence", "Coordinate_Type"]
         for i in range(21):
             headers.append(f"Joint_{i:02d}")
         
@@ -85,6 +85,15 @@ class CSVHandler:
             else:
                 hand_label = raw_label
 
+            gesture_name = "unknown"
+            gesture_confidence = 0.0
+
+            if hasattr(results, 'gestures') and results.gestures and len(results.gestures) > hand_idx:
+                hand_gestures = results.gestures[hand_idx]
+                if hand_gestures:
+                    gesture_name = hand_gestures[0].category_name
+                    gesture_confidence = float(hand_gestures[0].score)
+
             # hand_label = results.handedness[hand_idx][0].category_name.lower()
             
             # --- Write Coordinates to CSV ---
@@ -93,13 +102,13 @@ class CSVHandler:
 
             for i, lm in enumerate(landmarks):
                 screen_coords.append([float(lm.x), float(lm.y), float(lm.z)])
-                w_lm = results.hand_world_landmarks[hand_idx][i]
+                # w_lm = results.hand_world_landmarks[hand_idx][i]
                 # world_coords.append([float(w_lm.x), float(w_lm.y), float(w_lm.z)])
 
-            screen_row = [timestamp_ms, hand_idx, hand_label, "screen"] + screen_coords
+            screen_row = [f'="{timestamp_ms}"', hand_idx, hand_label, gesture_name, f"{gesture_confidence:.3f}", "screen"] + screen_coords
             self.writer.writerow(screen_row)
 
-            # world_row = [timestamp_ms, hand_idx, hand_label, "world"] + world_coords
+            # world_row = [f'="{timestamp_ms}"', hand_idx, hand_label, gesture_name, f"{gesture_confidence:.3f}", "world"] + world_coords
             # self.writer.writerow(world_row)
 
         if self.csv_file:
