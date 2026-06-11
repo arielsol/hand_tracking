@@ -76,7 +76,7 @@ class OSCHandler:
                             f"/hand/{hand_idx}/{hand_label}/gesture_change", 
                             [gesture_name, gesture_confidence]
                         )
-                        print(f"/hand/{hand_idx}/{hand_label}/gesture_change {gesture_name} ({gesture_confidence})")
+                        print(f"{hand_label.capitalize()} hand gesture: {gesture_name} ({gesture_confidence})")
                     
                     self.last_gestures[hand_idx] = gesture_name
 
