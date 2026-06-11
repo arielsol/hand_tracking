@@ -1,3 +1,4 @@
+import global_vars
 from pythonosc import udp_client
 
 class OSCHandler:
@@ -6,8 +7,8 @@ class OSCHandler:
         self.was_streaming = False
 
         # ---------- OSC Send Setup ----------
-        self.ip = "127.0.0.1"
-        self.port = 3131
+        self.ip = global_vars.OSC_IP_ADDRESS
+        self.port = global_vars.OSC_PORT
         self.client = udp_client.SimpleUDPClient(self.ip, self.port)
 
     def process_hand_data(self, results):

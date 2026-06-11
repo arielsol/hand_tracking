@@ -2,7 +2,7 @@
 KILL_THREADS = False
 
 # Toggle this in order to view how your WebCam is being interpreted (reduces performance).
-DEBUG = True 
+DEBUG = False
 
 # To switch cameras. Sometimes takes a while.
 WEBCAM_INDEX = 0
@@ -19,5 +19,9 @@ MODEL_COMPLEXITY = 2
 # [1, 4] recommended for CPU
 NUMBER_HANDS = 2
 
+# OSC Settings
+OSC_IP_ADDRESS = "127.0.0.1"
+OSC_PORT = 3131
+
 # Limits how many samples per second can be written to CSV
-SAMPLES_PER_SECOND = 5
+SAMPLES_PER_SECOND = 10

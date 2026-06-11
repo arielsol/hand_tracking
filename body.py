@@ -50,7 +50,7 @@ class CaptureThread(threading.Thread):
             if global_vars.DEBUG:
                 self.counter += 1
                 if time.time() - self.timer >= 3:
-                    # print("Capture FPS: ", self.counter / (time.time() - self.timer))
+                    print("Capture FPS: ", self.counter / (time.time() - self.timer))
                     self.counter = 0
                     self.timer = time.time()
 
