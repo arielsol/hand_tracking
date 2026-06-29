@@ -140,7 +140,14 @@ class HandThread(threading.Thread):
             
             # --- Raw Image for Processing ---
             image_rgb = cv2.cvtColor(image_raw, cv2.COLOR_BGR2RGB)
-            image_contiguous = image_rgb.copy()
+
+            # Optional image inversion
+            if global_vars.INVERT_GESTURES:
+                processing_img = cv2.flip(image_rgb, 0)
+                image_contiguous = processing_img.copy()
+            else:
+                image_contiguous = image_rgb.copy()
+            
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_contiguous)
             
             timestamp_ms = int(time.time() * 1000)
@@ -174,6 +181,17 @@ class HandThread(threading.Thread):
         cv2.destroyAllWindows()
 
     def handle_live_stream_result(self, results: vision.GestureRecognizeResult, output_image: mp.Image, timestamp_ms: int):
+        # --- Handle Inverted Gestures ---
+        if global_vars.INVERT_GESTURES and results.hand_landmarks:
+            for hand in results.hand_landmarks:
+                for lm in hand:
+                    lm.y = 1.0 - lm.y
+                    
+            for hand in results.hand_world_landmarks:
+                for lm in hand:
+                    lm.y = -lm.y 
+        
+        # --- Store and Send Data ---
         if results.hand_landmarks and len(results.hand_landmarks) > 0:
             self.latest_landmarks = results.hand_landmarks
         
